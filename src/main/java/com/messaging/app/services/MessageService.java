@@ -4,10 +4,10 @@ import com.messaging.app.repository.MessageRepository;
 import com.messaging.app.repository.UserRepository;
 import com.messaging.app.repository.data.Message;
 import com.messaging.app.repository.data.User;
-import com.messaging.app.services.exceptions.MessagingAppException;
+import com.messaging.app.services.exceptions.MessagingAppClientError;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -16,24 +16,30 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class MessageService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private MessageRepository messageRepository;
+    private final MessageRepository messageRepository;
 
-    public User createUser(String userId) {
+    public UserDTO createUser(UserDTO userDto) {
 
-        userRepository.findById(userId).ifPresent(user -> {
-            throw new MessagingAppException("userId is already registered");
+        userRepository.findByNickName(userDto.getNickName()).ifPresent(user -> {
+            throw new MessagingAppClientError("NickName is already present. please choose another one.");
         });
 
-        val user = new User();
-        user.setUserId(userId);
+        var user = new User();
+        user.setNickName(userDto.getNickName());
+        user = userRepository.save(user);
+        userDto.setUserId(user.getUserId());
+        return userDto;
+    }
 
-        return userRepository.save(user);
+    public User resolveUser(String nickName) {
+
+        return userRepository.findByNickName(nickName)
+                .orElseThrow(() -> new MessagingAppClientError(String.format("User not found : %s", nickName)));
     }
 
     public MessageDTO createMessage(MessageDTO message) {
@@ -41,72 +47,68 @@ public class MessageService {
         val sender = getSender(message.getSenderId());
         val receiver = getReceiver(message.getReceiverId());
 
-        var messageEntity = new Message();
-        messageEntity.setMessage(message.getMessage());
-        messageEntity.setSender(sender);
-        messageEntity.setReceiver(receiver);
-        messageEntity.setTimestamp(OffsetDateTime.now());
-        messageEntity.setStatus('A');
-        messageEntity = messageRepository.save(messageEntity);
+        if (sender.equals(receiver)) {
+            throw new MessagingAppClientError("User cannot send message to him/herself.");
+        }
+
+        val messageEntity = messageRepository.save(
+                Message.builder()
+                        .sender(sender)
+                        .receiver(receiver)
+                        .message(message.getMessage())
+                        .timestamp(OffsetDateTime.now())
+                        .status('A')
+                        .build()
+        );
 
         message.setMessageId(messageEntity.getMessageId());
         message.setTimestamp(messageEntity.getTimestamp());
         return message;
     }
 
-    public List<MessageDTO> getUserReceivedMessages(String receiverId) {
+    public List<MessageDTO> getUserReceivedMessages(Integer receiverId) {
 
         val receiver = getReceiver(receiverId);
 
         return messageRepository
                 .findMessageByReceiver(receiver)
                 .stream()
-                .map(this::mapToMessageDTO)
+                .map(MessageDTO::from)
                 .collect(Collectors.toList());
     }
 
-    public List<MessageDTO> getUserSentMessages(String senderId) {
+    public List<MessageDTO> getUserSentMessages(Integer senderId) {
 
         val sender = getSender(senderId);
 
         return messageRepository
                 .findMessageBySender(sender)
                 .stream()
-                .map(this::mapToMessageDTO)
+                .map(MessageDTO::from)
                 .collect(Collectors.toList());
     }
 
-    public List<MessageDTO> getUserReceivedMessagesFromSender(String receiverId, String senderId) {
+    public List<MessageDTO> getUserReceivedMessagesFromSender(Integer receiverId, Integer senderId) {
 
         val sender = getSender(senderId);
         val receiver = getReceiver(receiverId);
 
         return messageRepository
-                .findMessageBySenderAndReceiver(receiver, sender)
+                .findMessageBySenderAndReceiver(sender, receiver)
                 .stream()
-                .map(this::mapToMessageDTO)
+                .map(MessageDTO::from)
                 .collect(Collectors.toList());
     }
 
-    private User getSender(String senderId) {
-        return getUser(senderId, "sender not found");
+    private User getSender(Integer senderId) {
+        return getUser(senderId, String.format("sender not found. '%d'", senderId));
     }
 
-    private User getReceiver(String receiverId) {
-        return getUser(receiverId, "sender not found");
+    private User getReceiver(Integer receiverId) {
+        return getUser(receiverId, String.format("receiver not found. '%d'", receiverId));
     }
 
-    private User getUser(String userId, String fallbackErrorMsg) {
-        return userRepository.findById(userId).orElseThrow(() -> new MessagingAppException(fallbackErrorMsg));
-    }
-
-    private MessageDTO mapToMessageDTO(Message m) {
-        val message = new MessageDTO();
-        message.setMessageId(m.getMessageId());
-        message.setMessage(m.getMessage());
-        message.setReceiverId(m.getReceiver().getUserId());
-        message.setSenderId(m.getSender().getUserId());
-        message.setTimestamp(m.getTimestamp());
-        return message;
+    private User getUser(Integer userId, String notFoundMessage) {
+        return userRepository.findById(userId).orElseThrow(() -> new MessagingAppClientError(notFoundMessage));
     }
 }

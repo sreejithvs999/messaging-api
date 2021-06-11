@@ -1,17 +1,16 @@
 package com.messaging.app.repository.data;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import javax.persistence.*;
 import java.time.OffsetDateTime;
 
 @Entity()
-@Getter
-@Setter
 @Table(name = "messages")
 @Data
+@Builder()
+@NoArgsConstructor
+@AllArgsConstructor
 public class Message {
 
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -33,5 +32,6 @@ public class Message {
     private OffsetDateTime timestamp;
 
     @Column(name = "status")
+    @EqualsAndHashCode.Exclude
     private Character status;
 }

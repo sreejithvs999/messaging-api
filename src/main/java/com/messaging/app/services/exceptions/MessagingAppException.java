@@ -1,8 +1,12 @@
 package com.messaging.app.services.exceptions;
 
-public class MessagingAppException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public abstract class MessagingAppException extends RuntimeException {
 
     public MessagingAppException(String message) {
         super(message);
     }
+
+    public abstract HttpStatus getHttpStatus();
 }

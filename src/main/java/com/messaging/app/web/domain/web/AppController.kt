@@ -3,8 +3,10 @@ package com.messaging.app.web.domain.web
 import com.messaging.app.repository.data.User
 import com.messaging.app.services.MessageDTO
 import com.messaging.app.services.MessageService
+import com.messaging.app.services.UserDTO
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.validation.annotation.Validated
+import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -13,31 +15,36 @@ class AppController {
     @Autowired
     private lateinit var messageService: MessageService
 
-    @RequestMapping(method = [RequestMethod.POST], value = ["/user"])
-    fun createUser(@RequestParam("user_id") userId: String): User {
-       return messageService.createUser(userId);
+    @PostMapping(value = ["/user"], produces = ["application/json; enc"])
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createUser(@RequestBody user: UserDTO): UserDTO {
+        return messageService.createUser(user);
     }
 
-    @RequestMapping(method = [RequestMethod.POST], value = ["/message"])
+    @GetMapping(value = ["/user"], params = ["nickName"])
+    fun resolveUser(@RequestParam nickName: String): User {
+        return messageService.resolveUser(nickName);
+    }
+
+    @PostMapping(value = ["/message"])
+    @ResponseStatus(HttpStatus.CREATED)
     fun createMessage(@RequestBody message: MessageDTO): MessageDTO {
         return messageService.createMessage(message);
     }
 
-    @RequestMapping(method = [RequestMethod.GET], value = ["/message"], params = ["receiver_id"])
-    fun getUserReceivedMessages(@RequestParam("receiver_id") receiverId: String): List<MessageDTO> {
+    @GetMapping(value = ["/message"], params = ["receiverId"], produces = [MediaType.APPLICATION_JSON_VALUE])
+    fun getUserReceivedMessages(@RequestParam receiverId: Int): List<MessageDTO> {
         return messageService.getUserReceivedMessages(receiverId);
     }
 
 
-    @RequestMapping(method = [RequestMethod.GET], value = ["/message"], params = ["sender_id"])
-    fun getUserSentMessages(@RequestParam("sender_id") senderId: String): List<MessageDTO> {
+    @GetMapping(value = ["/message"], params = ["senderId"], produces = [MediaType.APPLICATION_JSON_VALUE])
+    fun getUserSentMessages(@RequestParam senderId: Int): List<MessageDTO> {
         return messageService.getUserSentMessages(senderId);
     }
 
-    @RequestMapping(method = [RequestMethod.GET], value = ["/message"], params = ["receiver_id", "sender_id"])
-    fun getUserReceivedMessagesFromSender(@RequestParam("receiver_id") receiverId: String,
-                                          @RequestParam("sender_id") senderId: String): List<MessageDTO> {
-
+    @GetMapping(value = ["/message"], params = ["receiverId", "senderId"], produces = [MediaType.APPLICATION_JSON_VALUE])
+    fun getUserReceivedMessagesFromSender(@RequestParam receiverId: Int, @RequestParam senderId: Int): List<MessageDTO> {
         return messageService.getUserReceivedMessagesFromSender(receiverId, senderId);
     }
 

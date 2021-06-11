@@ -1,21 +1,24 @@
 package com.messaging.app.repository.data;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
-import java.util.List;
 
-@Entity
-@Getter
-@Setter
+@Entity()
+@Table(name = "users",
+        uniqueConstraints = @UniqueConstraint(name = "idx_nick_name_unique", columnNames = "nick_name"))
 @Data
-@Table(name = "user")
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @Id
-    @Column(name = "user_id")
-    private String userId;
+    private Integer userId;
+
+    @Column(name = "nick_name", nullable = false)
+    private String nickName;
 
 }
